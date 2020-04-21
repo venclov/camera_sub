@@ -2,6 +2,7 @@
 #include <message_filters/time_synchronizer.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <DenseSLAMSystem.h>
 
 using namespace sensor_msgs;
 using namespace message_filters;
