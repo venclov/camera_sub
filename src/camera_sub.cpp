@@ -3,14 +3,43 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <DenseSLAMSystem.h>
+#include <cv_bridge/cv_bridge.h>
+// #include <opencv2/highgui/highgui.hpp>
+#include<iostream>
+#include <sstream>  // for string streams 
+#include <string>  // for string
+
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+
 
 using namespace sensor_msgs;
 using namespace message_filters;
 
 
-void callback(const ImageConstPtr& image, const ImageConstPtr& depth, const CameraInfoConstPtr& cam_info)
+
+void callback(const ImageConstPtr& img, const ImageConstPtr& depth, const CameraInfoConstPtr& cam_info)
 {
-    std::cout << "I was called" << std::endl;
+
+    // save rbg image as png
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+      cv_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
+      std::ostringstream str1;
+      str1 << "data/";
+      str1 << img->header.stamp;
+      str1 << ".png";
+      std::string name = str1.str();
+      cv::imwrite(name, cv_ptr->image);
+      ROS_INFO("Img saved %s", name);
+    }
+    catch (cv_bridge::Exception& e)
+    {
+      ROS_ERROR("cv_bridge exception: %s", e.what());
+    } 
+
   // Solve all of perception here...
 }
 

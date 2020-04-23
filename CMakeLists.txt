@@ -4,6 +4,8 @@ project(camera_sub)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
+find_package(OpenCV REQUIRED)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -12,8 +14,16 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_filters
   sensor_msgs
+  cv_bridge
 )
 
+
+
+message(STATUS "OpenCV library status:")
+message(STATUS "    version: ${OpenCV_VERSION}")
+message(STATUS "    libraries: ${OpenCV_LIBS}")
+message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
+# include_directories(${OpenCV_INCLUDE_DIRS})
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -153,8 +163,10 @@ add_executable(${PROJECT_NAME}_node src/camera_sub.cpp)
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   se-denseslam-sdf
+  # ${OpenCV_LIBS}
 )
 
+# target_link_libraries(my_awesome_library ${OpenCV_LIBRARIES})
 #############
 ## Install ##
 #############
