@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_filters
   sensor_msgs
   cv_bridge
+  eigen_conversions
 )
 
 

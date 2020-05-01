@@ -2,11 +2,20 @@
 #include <message_filters/time_synchronizer.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/PointCloud.h>
+#include <sensor_msgs/point_cloud_conversion.h>
+#include "tf/transform_datatypes.h"
+#include <eigen_conversions/eigen_msg.h>
+
+
 #include <DenseSLAMSystem.h>
 #include <cv_bridge/cv_bridge.h>
 #include<iostream>
 #include <sstream>  // for string streams 
 #include <string>  // for string
+#include <iostream>
+#include <fstream>
 #include <nav_msgs/Odometry.h>
 
 
@@ -20,35 +29,166 @@ using namespace message_filters;
 
 
 
-void callback(const ImageConstPtr& img, const ImageConstPtr& depth, const nav_msgs::OdometryConstPtr& ground_truth)
-{
+int counter = 0;
 
-    // save rbg image as png
-    cv_bridge::CvImagePtr cv_img_ptr;
-    cv_bridge::CvImagePtr cv_depth_ptr;
-    try
+std::string getFilename(std::string ext){
+  std::string front = "scene_00_";
+  std::string number;
+  if (counter < 10){
+    number = "000";
+  }
+  else if(counter < 100){
+    number = "00";
+  }
+  else{
+    number = "0";
+  }
+  std::string counter_str = std::to_string(counter);
+
+  return front + number + counter_str + ext;
+
+}
+
+void writeMatToFile(cv::Mat& m, const char* filename)
+{
+    std::ofstream fout(filename);
+
+    if(!fout)
     {
-      cv_img_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
-      cv_depth_ptr = cv_bridge::toCvCopy(depth, sensor_msgs::image_encodings::TYPE_32FC1);
-      std::ostringstream str1;
-      str1 << "data/";
-      str1 << img->header.stamp;
-      str1 << ".png";
-      std::string name_img = str1.str();
-      std::ostringstream str2;
-      str2 << "data/";
-      str2 << "depth";
-      str2 << depth->header.stamp;
-      str2 << ".png";
-      std::string name_depth = str2.str();
-      cv::imwrite(name_img, cv_img_ptr->image);
-      cv::imwrite(name_depth, cv_depth_ptr->image);
-      ROS_INFO("Img saved %s", name_img);
+        std::cout<<"File Not Opened"<<std::endl;  return;
     }
-    catch (cv_bridge::Exception& e)
+
+    for(int i=0; i<m.rows; i++)
     {
+        for(int j=0; j<m.cols; j++)
+        {
+            fout<<m.at<float>(i,j)<<"\t";
+        }
+        // example .depth file does not contain new lines
+        // fout<<std::endl;
+    }
+
+    fout.close();
+}
+
+void saveRgb(const ImageConstPtr& img)
+{
+    cv_bridge::CvImagePtr cv_img_ptr;
+    cv_img_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
+    std::string fileName = getFilename(".png");
+    // std::ostringstream str1;
+    // str1 << img->header.stamp;
+    // str1 << ".png";
+    // std::string name_img = str1.str(); 
+    try {
+    cv::imwrite(fileName, cv_img_ptr->image);
+    }
+    catch (cv_bridge::Exception& e){
       ROS_ERROR("cv_bridge exception: %s", e.what());
-    } 
+    }
+}
+
+
+void saveDepth(const ImageConstPtr& depth)
+{
+    cv_bridge::CvImagePtr cv_depth_ptr;
+    cv_depth_ptr = cv_bridge::toCvCopy(depth, sensor_msgs::image_encodings::TYPE_32FC1);
+
+    // int cwidth = 640/2;
+    // int cheight = 480/2;
+    // std::cout << "Depth at center is " << cv_depth_ptr->image.at<float>(cwidth, cheight) << " m" << std::endl;
+
+
+    // cv::Mat M = cv_depth_ptr->image;
+    // cv::FileStorage file("depth_map.yml", cv::FileStorage::WRITE);
+    // file << "M" << M; 
+
+    std::string fileName = getFilename(".depth");
+    cv::Mat image_mat = cv_depth_ptr->image;
+    cv::patchNaNs(image_mat, 100000);
+    writeMatToFile(image_mat, fileName.c_str());
+
+    // std::ostringstream str1;
+    // str1 << "depth";
+    // str1 << depth->header.stamp;
+    // str1 << ".png";
+    // std::string name_depth = str1.str(); 
+    // try {
+    // cv::imwrite(name_depth, cv_depth_ptr->image);
+    // }
+    // catch (cv_bridge::Exception& e){
+    //   ROS_ERROR("cv_bridge exception: %s", e.what());
+    // }
+}
+
+void savePose(const nav_msgs::OdometryConstPtr& msg)
+{
+  std::string fileName = "gt_pose.txt";
+  std::string fileNameEuler = "gt_pose_euler.txt";
+
+  Eigen::Vector3f zero_pos (10.0, 20.0, 0.00);
+
+
+  Eigen::Vector3f tran ((float) msg->pose.pose.position.x,
+                        (float) msg->pose.pose.position.y,
+                        (float) msg->pose.pose.position.z);
+  Eigen::Quaternionf quat ((float) msg->pose.pose.orientation.w,
+                            (float) msg->pose.pose.orientation.x,
+                            (float) msg->pose.pose.orientation.y,
+                            (float) msg->pose.pose.orientation.z);
+
+
+  float x_t = 0.069, y_t = -0.047, z_t =  0.117;
+  Eigen::Vector3f footprint_camera_pose = Eigen::Vector3f(x_t, y_t, z_t); // rgb camera route
+  float roll = -1.57, pitch = 0, yaw = -1.57;    
+  Eigen::Quaternionf foot_camera_quat; //from footprint to depth camera
+  foot_camera_quat = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX())
+      * Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY())
+      * Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+  
+  Eigen::Vector3f res_tran = (tran - zero_pos) + footprint_camera_pose;
+  // Eigen::Quaternionf res_quat = quat * foot_camera_quat; 
+  Eigen::Quaternionf res_quat = quat; 
+
+
+  // res_quat.normalize(); // normalize quaternion after operations
+  
+  // roll, pitch, yaw
+  Eigen::Vector3f euler = quat.toRotationMatrix().eulerAngles(0, 1, 2);
+
+  std::ofstream writer(fileName, std::ios_base::app | std::ios_base::out);
+  writer << counter << " "; // frame number as the first number
+  writer << res_tran[0] << " " << res_tran[1] << " " << res_tran[2] << " ";
+  writer << res_quat.x() << " " << res_quat.y() << " " << res_quat.z() << " "
+         << res_quat.w()<< std::endl;
+  writer.close();
+
+
+  std::ofstream writerEuler(fileNameEuler, std::ios_base::app | std::ios_base::out);
+  writerEuler << counter << " "; // frame number as the first number
+  writerEuler << euler[0] << " " << euler[1] << " " << euler[2] << std::endl;
+  writerEuler.close();
+
+}
+
+
+// void savePointcloud(const PointCloud2ConstPtr& msg)
+// {
+//   PointCloud out_cloud;
+//   convertPointCloud2ToPointCloud(*msg, out_cloud);
+
+
+// }
+
+void callback(const ImageConstPtr& img, const ImageConstPtr& depth, const nav_msgs::OdometryConstPtr& ground_truth) {
+
+
+  saveRgb(img);
+  saveDepth(depth);
+  savePose(ground_truth);
+  ROS_INFO("Img saved");
+
+  counter++;
 
   // Solve all of perception here...
 }
@@ -59,9 +199,11 @@ int main(int argc, char** argv)
 
   ros::NodeHandle nh;
 
+
   message_filters::Subscriber<Image> rgb_sub(nh, "/camera/rgb/image_raw", 1);
   message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
   message_filters::Subscriber<nav_msgs::Odometry> tf_sub(nh, "/ground_truth/state", 1);
+  // message_filters::Subscriber<PointCloud2> depth_sub(nh, "/camera/depth/points", 1);
   // message_filters::Subscriber<CameraInfo> info_sub(nh, "/camera/rgb/camera_info", 1);
   TimeSynchronizer<Image, Image, nav_msgs::Odometry> sync(rgb_sub, depth_sub, tf_sub, 10);
   sync.registerCallback(boost::bind(&callback, _1, _2, _3));
