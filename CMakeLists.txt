@@ -125,14 +125,14 @@ catkin_package(
 ## Build ##
 ###########
 
-add_subdirectory(supereight)
+# add_subdirectory(supereight)
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
-  supereight/se_denseslam/include/se/
+  # supereight/se_denseslam/include/se/
 )
 
 ## Declare a C++ library
@@ -163,7 +163,7 @@ add_executable(${PROJECT_NAME}_node src/camera_sub.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
-  se-denseslam-sdf
+  # se-denseslam-sdf
   # ${OpenCV_LIBS}
 )
 

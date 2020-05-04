@@ -9,7 +9,7 @@
 #include <eigen_conversions/eigen_msg.h>
 
 
-#include <DenseSLAMSystem.h>
+// #include <DenseSLAMSystem.h>
 #include <cv_bridge/cv_bridge.h>
 #include<iostream>
 #include <sstream>  // for string streams 
@@ -76,10 +76,6 @@ void saveRgb(const ImageConstPtr& img)
     cv_bridge::CvImagePtr cv_img_ptr;
     cv_img_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
     std::string fileName = getFilename(".png");
-    // std::ostringstream str1;
-    // str1 << img->header.stamp;
-    // str1 << ".png";
-    // std::string name_img = str1.str(); 
     try {
     cv::imwrite(fileName, cv_img_ptr->image);
     }
@@ -93,32 +89,11 @@ void saveDepth(const ImageConstPtr& depth)
 {
     cv_bridge::CvImagePtr cv_depth_ptr;
     cv_depth_ptr = cv_bridge::toCvCopy(depth, sensor_msgs::image_encodings::TYPE_32FC1);
-
-    // int cwidth = 640/2;
-    // int cheight = 480/2;
-    // std::cout << "Depth at center is " << cv_depth_ptr->image.at<float>(cwidth, cheight) << " m" << std::endl;
-
-
-    // cv::Mat M = cv_depth_ptr->image;
-    // cv::FileStorage file("depth_map.yml", cv::FileStorage::WRITE);
-    // file << "M" << M; 
-
     std::string fileName = getFilename(".depth");
     cv::Mat image_mat = cv_depth_ptr->image;
     cv::patchNaNs(image_mat, 100000);
     writeMatToFile(image_mat, fileName.c_str());
 
-    // std::ostringstream str1;
-    // str1 << "depth";
-    // str1 << depth->header.stamp;
-    // str1 << ".png";
-    // std::string name_depth = str1.str(); 
-    // try {
-    // cv::imwrite(name_depth, cv_depth_ptr->image);
-    // }
-    // catch (cv_bridge::Exception& e){
-    //   ROS_ERROR("cv_bridge exception: %s", e.what());
-    // }
 }
 
 void savePose(const nav_msgs::OdometryConstPtr& msg)
@@ -128,33 +103,34 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
 
   Eigen::Vector3f zero_pos (10.0, 20.0, 0.00);
 
+  Eigen::Matrix4d T_WB = Eigen::Matrix4d::Identity();
+  Eigen::Quaterniond q_WB;
+  tf::quaternionMsgToEigen(msg->pose.pose.orientation, q_WB);
+  T_WB.topLeftCorner<3, 3>() = q_WB.toRotationMatrix();
+  Eigen::Vector3d t_WB;
+  tf::pointMsgToEigen(msg->pose.pose.position, t_WB);
+  T_WB.topRightCorner<3, 1>() = t_WB;
+
+
+  Eigen::Quaterniond quat_world_body = q_WB;
+
 
   Eigen::Vector3f tran ((float) msg->pose.pose.position.x,
                         (float) msg->pose.pose.position.y,
                         (float) msg->pose.pose.position.z);
-  Eigen::Quaternionf quat ((float) msg->pose.pose.orientation.w,
-                            (float) msg->pose.pose.orientation.x,
-                            (float) msg->pose.pose.orientation.y,
-                            (float) msg->pose.pose.orientation.z);
-
 
   float x_t = 0.069, y_t = -0.047, z_t =  0.117;
   Eigen::Vector3f footprint_camera_pose = Eigen::Vector3f(x_t, y_t, z_t); // rgb camera route
-  float roll = -1.57, pitch = 0, yaw = -1.57;    
-  Eigen::Quaternionf foot_camera_quat; //from footprint to depth camera
-  foot_camera_quat = Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitX())
-      * Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitY())
-      * Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ());
+  Eigen::Quaterniond quat_body_camera = Eigen::Quaterniond(0.5, -0.5, 0.5, -0.5);
   
   Eigen::Vector3f res_tran = (tran - zero_pos) + footprint_camera_pose;
-  // Eigen::Quaternionf res_quat = quat * foot_camera_quat; 
-  Eigen::Quaternionf res_quat = quat; 
+  Eigen::Quaterniond res_quat = quat_world_body * quat_body_camera; 
 
 
-  // res_quat.normalize(); // normalize quaternion after operations
+  res_quat.normalize(); // normalize quaternion after operations
   
-  // roll, pitch, yaw
-  Eigen::Vector3f euler = quat.toRotationMatrix().eulerAngles(0, 1, 2);
+  // rotation_matrix
+  Eigen::Matrix3d rot_matrix = res_quat.toRotationMatrix();
 
   std::ofstream writer(fileName, std::ios_base::app | std::ios_base::out);
   writer << counter << " "; // frame number as the first number
@@ -165,8 +141,7 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
 
 
   std::ofstream writerEuler(fileNameEuler, std::ios_base::app | std::ios_base::out);
-  writerEuler << counter << " "; // frame number as the first number
-  writerEuler << euler[0] << " " << euler[1] << " " << euler[2] << std::endl;
+  writerEuler << rot_matrix<< std::endl;
   writerEuler.close();
 
 }
