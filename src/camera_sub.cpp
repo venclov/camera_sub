@@ -31,7 +31,17 @@ using namespace message_filters;
 
 int counter = 0;
 
-std::string getFilename(std::string ext){
+std::string getFilename(std::string ext, bool is_left){
+  std::string right_left;
+  if (is_left)
+  {
+    right_left = "left";
+  } else
+  {
+    right_left = "right";
+  }
+  
+  
   std::string front = "scene_00_";
   std::string number;
   if (counter < 10){
@@ -45,7 +55,7 @@ std::string getFilename(std::string ext){
   }
   std::string counter_str = std::to_string(counter);
 
-  return front + number + counter_str + ext;
+  return right_left + front + number + counter_str + ext;
 
 }
 
@@ -71,11 +81,11 @@ void writeMatToFile(cv::Mat& m, const char* filename)
     fout.close();
 }
 
-void saveRgb(const ImageConstPtr& img)
+void saveRgb(const ImageConstPtr& img, bool is_left)
 {
     cv_bridge::CvImagePtr cv_img_ptr;
     cv_img_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
-    std::string fileName = getFilename(".png");
+    std::string fileName = getFilename(".png", is_left);
     try {
     cv::imwrite(fileName, cv_img_ptr->image);
     }
@@ -84,17 +94,6 @@ void saveRgb(const ImageConstPtr& img)
     }
 }
 
-
-void saveDepth(const ImageConstPtr& depth)
-{
-    cv_bridge::CvImagePtr cv_depth_ptr;
-    cv_depth_ptr = cv_bridge::toCvCopy(depth, sensor_msgs::image_encodings::TYPE_32FC1);
-    std::string fileName = getFilename(".depth");
-    cv::Mat image_mat = cv_depth_ptr->image;
-    cv::patchNaNs(image_mat, 100000);
-    writeMatToFile(image_mat, fileName.c_str());
-
-}
 
 void savePose(const nav_msgs::OdometryConstPtr& msg)
 {
@@ -155,17 +154,17 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
 
 // }
 
-void callback(const ImageConstPtr& img, const ImageConstPtr& depth, const nav_msgs::OdometryConstPtr& ground_truth) {
+void callback(const ImageConstPtr& img_left, const ImageConstPtr& img_right, const nav_msgs::OdometryConstPtr& ground_truth) {
 
-
-  saveRgb(img);
-  saveDepth(depth);
+  // true for left, false for right
+  saveRgb(img_left, true);
+  saveRgb(img_right, false);
+  // saveDepth(depth);
   savePose(ground_truth);
   ROS_INFO("Img saved");
 
   counter++;
 
-  // Solve all of perception here...
 }
 
 int main(int argc, char** argv)
@@ -175,12 +174,13 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
 
 
-  message_filters::Subscriber<Image> rgb_sub(nh, "/camera/rgb/image_raw", 1);
-  message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
+  message_filters::Subscriber<Image> rgb_sub_left(nh, "/multisense_sl/camera/left/image_raw", 1);
+  message_filters::Subscriber<Image> rgb_sub_right(nh, "/multisense_sl/camera/right/image_raw", 1);
+  // message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
   message_filters::Subscriber<nav_msgs::Odometry> tf_sub(nh, "/ground_truth/state", 1);
   // message_filters::Subscriber<PointCloud2> depth_sub(nh, "/camera/depth/points", 1);
   // message_filters::Subscriber<CameraInfo> info_sub(nh, "/camera/rgb/camera_info", 1);
-  TimeSynchronizer<Image, Image, nav_msgs::Odometry> sync(rgb_sub, depth_sub, tf_sub, 10);
+  TimeSynchronizer<Image, Image, nav_msgs::Odometry> sync(rgb_sub_left, rgb_sub_right, tf_sub, 10);
   sync.registerCallback(boost::bind(&callback, _1, _2, _3));
 
   ros::spin();
