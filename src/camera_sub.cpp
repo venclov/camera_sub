@@ -31,16 +31,21 @@ using namespace message_filters;
 
 int counter = 0;
 
-std::string getFilename(std::string ext, bool is_left){
+std::string getFilename(std::string ext, bool is_left, bool is_depth){
   std::string right_left;
-  if (is_left)
-  {
-    right_left = "left";
+  if (is_depth){
+    right_left = "";
   } else
   {
-    right_left = "right";
-  }
+    if (is_left)
+    {
+      right_left = "left";
+    } else
+    {
+      right_left = "right";
+    }
   
+  }
   
   std::string front = "scene_00_";
   std::string number;
@@ -85,7 +90,7 @@ void saveRgb(const ImageConstPtr& img, bool is_left)
 {
     cv_bridge::CvImagePtr cv_img_ptr;
     cv_img_ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
-    std::string fileName = getFilename(".png", is_left);
+    std::string fileName = getFilename(".png", is_left, false);
     try {
     cv::imwrite(fileName, cv_img_ptr->image);
     }
@@ -98,7 +103,7 @@ void saveRgb(const ImageConstPtr& img, bool is_left)
 void savePose(const nav_msgs::OdometryConstPtr& msg)
 {
   std::string fileName = "gt_pose.txt";
-  std::string fileNameEuler = "gt_pose_euler.txt";
+  // std::string fileNameEuler = "gt_pose_euler.txt";
 
   Eigen::Vector3f zero_pos (10.0, 20.0, 0.00);
 
@@ -139,9 +144,20 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
   writer.close();
 
 
-  std::ofstream writerEuler(fileNameEuler, std::ios_base::app | std::ios_base::out);
-  writerEuler << rot_matrix<< std::endl;
-  writerEuler.close();
+  // std::ofstream writerEuler(fileNameEuler, std::ios_base::app | std::ios_base::out);
+  // writerEuler << rot_matrix<< std::endl;
+  // writerEuler.close();
+
+}
+
+void saveDepth(const ImageConstPtr& depth)
+{
+    cv_bridge::CvImagePtr cv_depth_ptr;
+    cv_depth_ptr = cv_bridge::toCvCopy(depth, sensor_msgs::image_encodings::TYPE_32FC1);
+    std::string fileName = getFilename(".depth", false, true);
+    cv::Mat image_mat = cv_depth_ptr->image;
+    cv::patchNaNs(image_mat, 100000);
+    writeMatToFile(image_mat, fileName.c_str());
 
 }
 
@@ -154,12 +170,12 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
 
 // }
 
-void callback(const ImageConstPtr& img_left, const ImageConstPtr& img_right, const nav_msgs::OdometryConstPtr& ground_truth) {
+void callback(const ImageConstPtr& depth, const ImageConstPtr& img_left, const ImageConstPtr& img_right, const nav_msgs::OdometryConstPtr& ground_truth) {
 
   // true for left, false for right
   saveRgb(img_left, true);
   saveRgb(img_right, false);
-  // saveDepth(depth);
+  saveDepth(depth);
   savePose(ground_truth);
   ROS_INFO("Img saved");
 
@@ -176,12 +192,12 @@ int main(int argc, char** argv)
 
   message_filters::Subscriber<Image> rgb_sub_left(nh, "/multisense_sl/camera/left/image_raw", 1);
   message_filters::Subscriber<Image> rgb_sub_right(nh, "/multisense_sl/camera/right/image_raw", 1);
-  // message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
+  message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
   message_filters::Subscriber<nav_msgs::Odometry> tf_sub(nh, "/ground_truth/state", 1);
   // message_filters::Subscriber<PointCloud2> depth_sub(nh, "/camera/depth/points", 1);
   // message_filters::Subscriber<CameraInfo> info_sub(nh, "/camera/rgb/camera_info", 1);
-  TimeSynchronizer<Image, Image, nav_msgs::Odometry> sync(rgb_sub_left, rgb_sub_right, tf_sub, 10);
-  sync.registerCallback(boost::bind(&callback, _1, _2, _3));
+  TimeSynchronizer<Image, Image, Image, nav_msgs::Odometry> sync(depth_sub, rgb_sub_left, rgb_sub_right, tf_sub, 10);
+  sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
 
   ros::spin();
 
