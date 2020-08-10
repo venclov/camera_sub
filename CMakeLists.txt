@@ -4,7 +4,10 @@ project(camera_sub)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED  PATHS "/usr/local/opencv")
+
+set(cv_bridge_DIR /usr/local/share/cv_bridge/cmake)
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
