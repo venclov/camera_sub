@@ -190,13 +190,13 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
 
 
-  message_filters::Subscriber<Image> rgb_sub_left(nh, "/multisense_sl/camera/left/image_raw", 3);
-  message_filters::Subscriber<Image> rgb_sub_right(nh, "/multisense_sl/camera/right/image_raw", 3);
-  message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 3);
-  message_filters::Subscriber<nav_msgs::Odometry> tf_sub(nh, "/ground_truth/state", 3);
+  message_filters::Subscriber<Image> rgb_sub_left(nh, "/multisense_sl/camera/left/image_raw", 1);
+  message_filters::Subscriber<Image> rgb_sub_right(nh, "/multisense_sl/camera/right/image_raw", 1);
+  message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
+  message_filters::Subscriber<nav_msgs::Odometry> tf_sub(nh, "/ground_truth/state", 1);
   // message_filters::Subscriber<PointCloud2> depth_sub(nh, "/camera/depth/points", 1);
   // message_filters::Subscriber<CameraInfo> info_sub(nh, "/camera/rgb/camera_info", 1);
-  TimeSynchronizer<Image, Image, Image, nav_msgs::Odometry> sync(depth_sub, rgb_sub_left, rgb_sub_right, tf_sub, 20);
+  TimeSynchronizer<Image, Image, Image, nav_msgs::Odometry> sync(depth_sub, rgb_sub_left, rgb_sub_right, tf_sub, 10);
   sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
 
   ros::spin();
