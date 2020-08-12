@@ -105,7 +105,7 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
   std::string fileName = "gt_pose.txt";
   // std::string fileNameEuler = "gt_pose_euler.txt";
 
-  Eigen::Vector3f zero_pos (10.0, 20.0, 0.00);
+  Eigen::Vector3f zero_pos (3.0, 4.3, 0.00);
 
   Eigen::Matrix4d T_WB = Eigen::Matrix4d::Identity();
   Eigen::Quaterniond q_WB;
