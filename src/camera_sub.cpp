@@ -123,7 +123,7 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
                         (float) msg->pose.pose.position.y,
                         (float) msg->pose.pose.position.z);
 
-  float x_t = 0.069, y_t = -0.047, z_t =  0.117;
+  float x_t = 0.069, y_t = -0.047, z_t =  0.417;
   Eigen::Vector3f footprint_camera_pose = Eigen::Vector3f(x_t, y_t, z_t); // rgb camera route
   Eigen::Quaterniond quat_body_camera = Eigen::Quaterniond(0.5, -0.5, 0.5, -0.5);
   
