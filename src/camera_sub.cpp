@@ -143,11 +143,6 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
          << res_quat.w()<< std::endl;
   writer.close();
 
-
-  // std::ofstream writerEuler(fileNameEuler, std::ios_base::app | std::ios_base::out);
-  // writerEuler << rot_matrix<< std::endl;
-  // writerEuler.close();
-
 }
 
 void saveDepth(const ImageConstPtr& depth)
@@ -161,14 +156,6 @@ void saveDepth(const ImageConstPtr& depth)
 
 }
 
-
-// void savePointcloud(const PointCloud2ConstPtr& msg)
-// {
-//   PointCloud out_cloud;
-//   convertPointCloud2ToPointCloud(*msg, out_cloud);
-
-
-// }
 
 void callback(const ImageConstPtr& depth, const ImageConstPtr& img_left, const ImageConstPtr& img_right, const nav_msgs::OdometryConstPtr& ground_truth) {
 
@@ -194,8 +181,6 @@ int main(int argc, char** argv)
   message_filters::Subscriber<Image> rgb_sub_right(nh, "/multisense_sl/camera/right/image_raw", 1);
   message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
   message_filters::Subscriber<nav_msgs::Odometry> tf_sub(nh, "/ground_truth/state", 1);
-  // message_filters::Subscriber<PointCloud2> depth_sub(nh, "/camera/depth/points", 1);
-  // message_filters::Subscriber<CameraInfo> info_sub(nh, "/camera/rgb/camera_info", 1);
   TimeSynchronizer<Image, Image, Image, nav_msgs::Odometry> sync(depth_sub, rgb_sub_left, rgb_sub_right, tf_sub, 10);
   sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
 
