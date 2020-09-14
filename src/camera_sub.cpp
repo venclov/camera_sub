@@ -9,7 +9,6 @@
 #include <eigen_conversions/eigen_msg.h>
 
 
-// #include <DenseSLAMSystem.h>
 #include <cv_bridge/cv_bridge.h>
 #include<iostream>
 #include <sstream>  // for string streams 
@@ -64,8 +63,6 @@ void writeMatToFile(cv::Mat& m, const char* filename)
         {
             fout<<m.at<float>(i,j)<<"\t";
         }
-        // example .depth file does not contain new lines
-        // fout<<std::endl;
     }
 
     fout.close();
@@ -147,14 +144,6 @@ void savePose(const nav_msgs::OdometryConstPtr& msg)
 }
 
 
-// void savePointcloud(const PointCloud2ConstPtr& msg)
-// {
-//   PointCloud out_cloud;
-//   convertPointCloud2ToPointCloud(*msg, out_cloud);
-
-
-// }
-
 void callback(const ImageConstPtr& img, const ImageConstPtr& depth, const nav_msgs::OdometryConstPtr& ground_truth) {
 
 
@@ -165,7 +154,6 @@ void callback(const ImageConstPtr& img, const ImageConstPtr& depth, const nav_ms
 
   counter++;
 
-  // Solve all of perception here...
 }
 
 int main(int argc, char** argv)
@@ -178,8 +166,6 @@ int main(int argc, char** argv)
   message_filters::Subscriber<Image> rgb_sub(nh, "/camera/rgb/image_raw", 1);
   message_filters::Subscriber<Image> depth_sub(nh, "/camera/depth/image_raw", 1);
   message_filters::Subscriber<nav_msgs::Odometry> tf_sub(nh, "/ground_truth/state", 1);
-  // message_filters::Subscriber<PointCloud2> depth_sub(nh, "/camera/depth/points", 1);
-  // message_filters::Subscriber<CameraInfo> info_sub(nh, "/camera/rgb/camera_info", 1);
   TimeSynchronizer<Image, Image, nav_msgs::Odometry> sync(rgb_sub, depth_sub, tf_sub, 10);
   sync.registerCallback(boost::bind(&callback, _1, _2, _3));
 
